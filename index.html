@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>JSON Visualizer</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.css"
+    />
+    <style>
+      /* Global */
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #eef1f5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      h2 {
+        color: #2c3e50;
+        font-size: 26px;
+        margin: 25px 0 10px;
+      }
+
+      /* Editor Area */
+      #editorWrapper {
+        position: relative;
+        width: 100%;
+        max-width: 1000px;
+        margin: 20px auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      .CodeMirror {
+        height: 300px;
+        border-radius: 10px;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      #editorStatus {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+        background-color: #2c3e50;
+        padding: 8px 15px;
+        border-top: 1px solid #ccc;
+        text-align: left;
+      }
+
+      #editorStatus:hover {
+        background-color: #34495e;
+      }
+
+      /* Buttons */
+      button {
+        padding: 12px 24px;
+        font-size: 15px;
+        font-weight: 500;
+        background-color: #3498db;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        margin: 10px 5px;
+        transition: background-color 0.3s ease;
+      }
+
+      button:hover {
+        background-color: #2980b9;
+      }
+
+      /* Dropdown */
+      #languageSelect {
+        padding: 10px;
+        font-size: 15px;
+        margin-top: 10px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+      }
+
+      /* Error Message */
+      #errorMessages {
+        background-color: #ffe4e1;
+        color: #c0392b;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #e74c3c;
+        margin-top: 20px;
+        width: 100%;
+        max-width: 1000px;
+        box-shadow: 0 2px 8px rgba(231, 76, 60, 0.15);
+        text-align: center;
+        display: none;
+      }
+
+      /* Visualizer */
+      #visualizer,
+      #jsonVisualizer {
+        background-color: #fff;
+        padding: 25px;
+        border-radius: 10px;
+        max-width: 1000px;
+        width: 100%;
+        margin-top: 40px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+      }
+
+      /* Node Structure */
+      .node {
+        background-color: #f9fbfd;
+        border-left: 5px solid #2980b9;
+        margin-bottom: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-family: "Courier New", monospace;
+        transition: background 0.3s;
+      }
+
+      .node:hover {
+        background-color: #e6f0fa;
+      }
+
+      .node table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+
+      .node td {
+        padding: 8px 10px;
+        border: 1px solid #e0e0e0;
+      }
+
+      .node td.key {
+        font-weight: bold;
+        background-color: #ecf0f1;
+      }
+
+      .node td.value {
+        background-color: #f9f9f9;
+      }
+
+      .index {
+        font-weight: bold;
+        color: #2c3e50;
+        margin-bottom: 5px;
+      }
+
+      .sub-item-count {
+        color: #3498db;
+        font-style: italic;
+        margin-bottom: 10px;
+      }
+
+      /* Popup */
+      #jsonPopup {
+        background: #ffffff;
+        border-radius: 10px;
+        border: 2px solid #3498db;
+        padding: 25px;
+        box-shadow: 0 12px 25px rgba(0, 0, 0, 0.2);
+
+        /* Centering positioning */
+        position: absolute;
+        display: none; /* Hide by default */
+        z-index: 1000;
+
+        /* Set max height for the popup and make content scrollable */
+        max-height: 80vh;
+        width: 400px; /* Adjust to your desired width */
+        overflow: hidden;
+      }
+
+      #jsonPopup h2 {
+        font-size: 1.2rem;
+        color: #3498db;
+        margin-bottom: 20px;
+      }
+
+      #jsonPopup .popup-content {
+        max-height: calc(80vh - 100px); /* Leave space for buttons */
+        overflow-y: auto; /* Make content scrollable */
+        margin-bottom: 20px;
+      }
+
+      #jsonPopup .close-btn,
+      #jsonPopup .copy-btn {
+        background-color: #2ecc71;
+        padding: 10px 20px;
+        font-size: 14px;
+        border-radius: 6px;
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      #jsonPopup .close-btn:hover,
+      #jsonPopup .copy-btn:hover {
+        background-color: #27ae60;
+      }
+
+      #jsonPopup .close-btn {
+        float: left;
+      }
+
+      #jsonPopup .copy-btn {
+        float: right;
+      }
+
+      #jsonPopup .button-container {
+        clear: both;
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+      }
+
+      #jsonPopup .copy-btn {
+        margin-left: auto;
+      }
+
+      /* Footer */
+      footer {
+        margin-top: 40px;
+        color: #999;
+        font-size: 14px;
+      }
+      /* Tree View Styles */
+      #treeVisualizer {
+        margin-top: 20px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      ul {
+        list-style: none;
+        padding-left: 20px;
+      }
+
+      li {
+        position: relative;
+        font-size: 16px;
+        padding: 5px 0;
+        margin-left: 20px;
+      }
+
+      li:before {
+        content: "";
+        position: absolute;
+        left: -10px;
+        top: 10px;
+        border-left: 2px solid #3498db;
+        border-bottom: 2px solid #3498db;
+        width: 10px;
+        height: 10px;
+        transform: rotate(45deg);
+        visibility: hidden;
+      }
+
+      li.parent:before {
+        visibility: visible;
+      }
+
+      li.collapsed > ul {
+        display: none;
+      }
+
+      li.collapsed > .node-label:before {
+        content: "▶";
+        margin-right: 10px;
+      }
+
+      li.expanded > .node-label:before {
+        content: "▼";
+        margin-right: 10px;
+      }
+
+      .node-label {
+        cursor: pointer;
+        padding-left: 5px;
+      }
+
+      .node-label:hover {
+        color: #3498db;
+        font-weight: bold;
+      }
+
+      ul > li > ul {
+        padding-left: 20px;
+        display: none;
+      }
+
+      ul > li.expanded > ul {
+        display: block;
+      }
+
+      .node-label {
+        display: flex;
+        align-items: center;
+      }
+
+      .node-label .node-text {
+        margin-left: 10px;
+        font-weight: normal;
+      }
+
+      .sub-item-count {
+        color: #3498db;
+        font-style: italic;
+        margin-top: 5px;
+      }
+
+      .collapsed .node-text {
+        font-weight: bold;
+        color: #2c3e50;
+      }
+
+      /* Global */
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #eef1f5;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+      }
+
+      h2 {
+        color: #2c3e50;
+        font-size: 26px;
+        margin: 25px 0 10px;
+      }
+
+      /* Editor Area */
+      #editorWrapper {
+        position: relative;
+        width: 100%;
+        max-width: 1000px;
+        margin: 20px auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #ffffff;
+      }
+
+      .CodeMirror {
+        height: 300px;
+        border-radius: 10px;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+
+      #editorStatus {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+        background-color: #2c3e50;
+        padding: 8px 15px;
+        border-top: 1px solid #ccc;
+        text-align: left;
+      }
+
+      #editorStatus:hover {
+        background-color: #34495e;
+      }
+
+      /* Tree View Style */
+      #treeVisualizer ul {
+        list-style-type: none;
+        padding-left: 20px;
+        font-family: "Courier New", monospace;
+        font-size: 16px;
+        line-height: 1.6;
+      }
+
+      #treeVisualizer li {
+        margin: 5px 0;
+        padding: 5px;
+        background-color: #f9fbfd;
+        border-radius: 5px;
+        transition: background-color 0.3s;
+      }
+
+      #treeVisualizer li:hover {
+        background-color: #e6f0fa;
+      }
+
+      .node-content {
+        padding: 8px;
+        border-radius: 5px;
+        background-color: #ecf0f1;
+        margin-left: 15px;
+        transition: background-color 0.3s ease;
+      }
+
+      .node-content:hover {
+        background-color: #dfe6e9;
+      }
+
+      .toggle-btn {
+        padding: 4px 8px;
+        background-color: #2980b9;
+        color: white;
+        font-size: 12px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 5px;
+        transition: background-color 0.3s;
+      }
+
+      .toggle-btn:hover {
+        background-color: #3498db;
+      }
+
+      /* Footer */
+      footer {
+        margin-top: 40px;
+        color: #999;
+        font-size: 14px;
+      }
+      #languageSelector {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      #languageSelector label {
+        font-size: 16px;
+        color: #34495e;
+        font-weight: 600;
+        padding: 8px 15px;
+        border-radius: 8px;
+        background-color: #f1f3f5;
+        cursor: pointer;
+        transition: background-color 0.3s ease, color 0.3s ease;
+      }
+
+      #languageSelector label:hover {
+        background-color: #2980b9;
+        color: #ffffff;
+      }
+
+      #languageSelector input[type="radio"] {
+        margin-right: 8px;
+        accent-color: #2980b9; /* Customize radio button color */
+      }
+
+      #languageSelector input[type="radio"]:checked + label {
+        background-color: #2980b9;
+        color: #ffffff;
+      }
+
+      #languageSelector input[type="radio"]:checked + label:hover {
+        background-color: #3498db;
+      }
+      .file-upload-wrapper {
+        margin: 20px 0;
+        display: flex;
+        justify-content: center;
+      }
+
+      .file-upload-label {
+        padding: 12px 24px;
+        font-size: 15px;
+        font-weight: 500;
+        background-color: #3498db;
+        color: #fff;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        display: inline-block;
+      }
+
+      .file-upload-label:hover {
+        background-color: #2980b9;
+      }
+
+      #fileInput {
+        display: none; /* Hide the native file input */
+      }
+      .upload-status {
+        width: 100%;
+        max-width: 600px;
+        margin: 10px auto;
+        padding: 12px;
+        text-align: center;
+        font-size: 15px;
+        border-radius: 8px;
+        transition: all 0.3s ease-in-out;
+      }
+
+      .upload-status.hidden {
+        display: none;
+      }
+
+      .upload-status.success {
+        background-color: #e8f8f5;
+        color: #27ae60;
+        border: 1px solid #2ecc71;
+      }
+
+      .upload-status.error {
+        background-color: #fdecea;
+        color: #c0392b;
+        border: 1px solid #e74c3c;
+      }
+
+      .upload-status.warning {
+        background-color: #fffbea;
+        color: #f39c12;
+        border: 1px solid #f1c40f;
+      }
+
+      .progress-bar {
+        height: 8px;
+        background-color: #3498db;
+        width: 0%;
+        border-radius: 5px;
+        margin-top: 10px;
+        transition: width 0.4s ease;
+      }
+      #dropZone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: background 0.3s ease;
+      }
+
+      #dropZone.dragover {
+        background-color: #f0f8ff;
+        border-color: #3498db;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Editor</h2>
+    <div class="file-upload-wrapper" id="dropZone">
+      <label for="fileInput" class="file-upload-label">
+        📁 Click or Drag & Drop JSON or XML
+      </label>
+      <input type="file" id="fileInput" accept=".json,.xml" />
+    </div>
+
+    <div id="uploadStatus" class="upload-status hidden">
+      <div id="uploadMessage"></div>
+      <div id="uploadProgressBar" class="progress-bar"></div>
+    </div>
+
+    <div id="editorWrapper">
+      <textarea id="editor">
+{
+  "Refobjkey": "7004774498674",
+  "DocType": "ZCP1",
+  "SalesOrg": "1100",
+  "DistrChan": "60",
+  "Division": "09",
+  "SalesGrp": "A07",
+  "SalesOff": "A101",
+  "ReqDateH": "/Date(1745463609331)/",
+  "PurchDate": "/Date(1745463609331)/",
+  "PriceDate": "/Date(1745463609331)/",
+  "PurchNoC": "PP5509",
+  "SODocItemSet": [
+    {
+      "Refobjkey": "7004774498674",
+      "ItmNumber": "000010",
+      "Material": "4001003218",
+      "Plant": "1113",
+      "StoreLoc": "AM10"
+    }
+  ],
+  "SODocItemScheduleSet": [
+    {
+      "Refobjkey": "7004774498674",
+      "ItmNumber": "000010",
+      "ReqQty": "1"
+    }
+  ]
+}
+</textarea
+      >
+      <div id="editorStatus">Ln: 1, Col: 1</div>
+    </div>
+
+    <div id="errorMessages">
+      <strong>Error in JSON:</strong>
+      <span id="errorText"></span>
+    </div>
+    <div id="languageSelector" style="margin-top: 10px">
+      <label>
+        <input type="radio" name="dataFormat" value="json" checked /> JSON
+      </label>
+      <label style="margin-left: 15px">
+        <input type="radio" name="dataFormat" value="xml" /> XML
+      </label>
+    </div>
+    <div>
+      <button onclick="visualizeInput()">visualize Input</button>
+      <button onclick="checkAndFormatJSON()">Check & Format</button>
+    </div>
+
+    <h2>Visualization</h2>
+    <div style="margin-bottom: 15px">
+      <button id="tableViewBtn" onclick="setViewMode('table')">
+        Table View
+      </button>
+      <button id="treeViewBtn" onclick="setViewMode('tree')">Tree View</button>
+    </div>
+
+    <div id="jsonVisualizer"></div>
+    <div id="treeVisualizer" style="display: none"></div>
+
+    <div id="jsonPopup">
+      <button class="close-btn" onclick="closePopup()">×</button>
+      <h2 id="popupHeading">JSON Data</h2>
+
+      <!-- Content Wrapper for Scrollable Content -->
+      <div class="popup-content">
+        <pre id="popupJsonContent"></pre>
+      </div>
+
+      <!-- Button Container at the Bottom -->
+      <div class="button-container">
+        <button class="copy-btn" onclick="copyToClipboard()">
+          Copy to Clipboard
+        </button>
+      </div>
+    </div>
+
+    <footer>
+      <p>&copy; 2025 Visualizer. All Rights Reserved.</p>
+    </footer>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.9/mode/xml/xml.min.js"></script>
+    <!-- <script type="module" src="https://cdn.jsdelivr.net/npm/vkbeautify@0.99.3/index.min.js"></script> -->
+
+    <script src="https://cdn.jsdelivr.net/npm/xml-beautify@1.2.3/dist/XmlBeautify.js"></script>
+    <script>
+      let currentView = "table";
+
+      function setViewMode(view) {
+        currentView = view;
+        document.getElementById("tableViewBtn").style.backgroundColor =
+          view === "table" ? "#2980b9" : "#3498db";
+        document.getElementById("treeViewBtn").style.backgroundColor =
+          view === "tree" ? "#2980b9" : "#3498db";
+
+        visualizeInput(); // Re-render when view changes
+      }
+
+      const fileInput = document.getElementById("fileInput");
+      const dropZone = document.getElementById("dropZone");
+      const statusBox = document.getElementById("uploadStatus");
+      const progressBar = document.getElementById("uploadProgressBar");
+      const message = document.getElementById("uploadMessage");
+
+      // 🧠 Handle both click and drop
+      fileInput.addEventListener("change", (e) =>
+        handleFile(e.target.files[0])
+      );
+
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover");
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("dragover");
+        const file = e.dataTransfer.files[0];
+        handleFile(file);
+      });
+
+      function handleFile(file) {
+        if (!file) return;
+
+        const fileExt = file.name.split(".").pop().toLowerCase();
+        if (!["json", "xml"].includes(fileExt)) {
+          showStatus("Only JSON and XML files are allowed.", "error");
+          return;
+        }
+        debugger;
+        console.log("File:",file)
+        if (file.size === 0) {
+          showStatus(`${file.name} is empty.`, "warning");
+          return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onprogress = function (event) {
+          if (event.lengthComputable) {
+            const percent = (event.loaded / event.total) * 100;
+            progressBar.style.width = percent.toFixed(0) + "%";
+          }
+        };
+
+        reader.onloadstart = function () {
+          statusBox.className = "upload-status";
+          progressBar.style.width = "0%";
+          message.textContent = file.name+ " Uploading...";
+        };
+
+        reader.onload = function (event) {
+          const content = event.target.result;
+
+          try {
+            if (fileExt === "json") {
+              JSON.parse(content);
+              editor.setOption("mode", "application/json");
+            } else if (fileExt === "xml") {
+              const parser = new DOMParser();
+              const xmlDoc = parser.parseFromString(content, "application/xml");
+              const parseError = xmlDoc.querySelector("parsererror");
+              if (parseError) throw new Error("Invalid XML format");
+              editor.setOption("mode", "application/xml");
+            }
+
+            editor.setValue(content);
+            showStatus(`${file.name} loaded successfully!`, "success");
+          } catch (err) {
+            showStatus(`${file.name} Error: ` + err.message, "error");
+          }
+        };
+
+        reader.onerror = function () {
+          showStatus("Failed to read file.", "error");
+        };
+
+        reader.readAsText(file);
+      }
+
+      function showStatus(msg, type) {
+        statusBox.className = `upload-status ${type}`;
+        message.textContent = msg;
+        if (type === "success") progressBar.style.width = "100%";
+      }
+
+      // const xml = "<root><child>content</child></root>";
+      // const beautifiedXml = new XmlBeautify().beautify(xml, {
+      //   indent: "  ",
+      //   useSelfClosingElement: true,
+      // });
+      // console.log(beautifiedXml);
+    </script>
+
+    <script>
+      // document
+      //   .getElementById("languageSelect")
+      //   .addEventListener("change", function () {
+      //     const lang = this.value;
+      //     let mode = "application/json";
+      //     if (lang === "xml") mode = "application/xml";
+      //     if (lang === "json") mode = "application/json";
+      //     editor.setOption("mode", mode);
+      //   });
+
+      // Update CodeMirror mode when radio button changes
+      document.querySelectorAll("input[name='dataFormat']").forEach((radio) => {
+        radio.addEventListener("change", function () {
+          const mode =
+            this.value === "xml" ? "application/xml" : "application/json";
+          editor.setOption("mode", mode);
+        });
+      });
+
+      function getSelectedFormat() {
+        return document.querySelector("input[name='dataFormat']:checked").value;
+      }
+
+      const editor = CodeMirror.fromTextArea(
+        document.getElementById("editor"),
+        {
+          mode: "application/json",
+          lineNumbers: true,
+          theme: "default",
+          viewportMargin: Infinity,
+        }
+      );
+
+      editor.on("cursorActivity", function () {
+        const cursor = editor.getCursor();
+        const line = cursor.line + 1;
+        const column = cursor.ch + 1;
+        document.getElementById(
+          "editorStatus"
+        ).textContent = `Ln: ${line}, Col: ${column}`;
+      });
+
+      function checkAndFormatJSON() {
+        const selectedFormat = getSelectedFormat();
+        const input = editor.getValue();
+
+        if (selectedFormat === "json") {
+          try {
+            const json = JSON.parse(input);
+            const formattedJson = JSON.stringify(json, null, 2);
+            editor.setValue(formattedJson);
+            clearError();
+          } catch (err) {
+            highlightError(err);
+          }
+        } else if (selectedFormat === "xml") {
+          try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(input, "application/xml");
+            const parseError = xmlDoc.querySelector("parsererror");
+
+            if (parseError) {
+              throw new Error("Invalid XML: " + parseError.textContent);
+            }
+
+            // const serializer = new XMLSerializer();
+            // const prettyXml = vkbeautify.xml(
+            //   serializer.serializeToString(xmlDoc)
+            // );
+            const beautifiedXml = new XmlBeautify().beautify(input, {
+              indent: "  ",
+              useSelfClosingElement: true,
+            });
+            editor.setValue(beautifiedXml);
+            clearError();
+          } catch (err) {
+            highlightError(err);
+          }
+        }
+      }
+
+      function xmlToJson(xml) {
+        const obj = {};
+
+        if (xml.nodeType === 1) {
+          // Element
+          if (xml.attributes.length > 0) {
+            obj["@attributes"] = {};
+            for (let j = 0; j < xml.attributes.length; j++) {
+              const attribute = xml.attributes.item(j);
+              obj["@attributes"][attribute.nodeName] = attribute.nodeValue;
+            }
+          }
+        } else if (xml.nodeType === 3) {
+          // Text node
+          return xml.nodeValue.trim();
+        }
+
+        if (xml.hasChildNodes()) {
+          for (let i = 0; i < xml.childNodes.length; i++) {
+            const item = xml.childNodes.item(i);
+            const nodeName = item.nodeName;
+            const jsonContent = xmlToJson(item);
+            if (jsonContent === "") continue;
+
+            if (typeof obj[nodeName] === "undefined") {
+              obj[nodeName] = jsonContent;
+            } else {
+              if (!Array.isArray(obj[nodeName])) {
+                obj[nodeName] = [obj[nodeName]];
+              }
+              obj[nodeName].push(jsonContent);
+            }
+          }
+        }
+
+        return obj;
+      }
+
+      function highlightError(err) {
+        // Display the error message
+        document.getElementById("errorMessages").style.display = "block";
+        document.getElementById("errorText").textContent = err.message;
+      }
+
+      function clearError() {
+        document.getElementById("errorMessages").style.display = "none";
+      }
+
+      let currentPopupData = null; // Global variable to store the current data and path
+
+      function visualizeInput() {
+        const lang = getSelectedFormat();
+        const tableContainer = document.getElementById("jsonVisualizer");
+        const treeContainer = document.getElementById("treeVisualizer");
+
+        tableContainer.style.display = "none";
+        treeContainer.style.display = "none";
+
+        tableContainer.innerHTML = "";
+        treeContainer.innerHTML = "";
+
+        try {
+          let parsedData;
+
+          if (lang === "xml") {
+            const xmlText = editor.getValue();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+            const parseError = xmlDoc.querySelector("parsererror");
+
+            if (parseError) {
+              throw new Error("Invalid XML: " + parseError.textContent);
+            }
+
+            parsedData = xmlToJson(xmlDoc.documentElement);
+          } else {
+            parsedData = JSON.parse(editor.getValue());
+          }
+
+          if (currentView === "table") {
+            const rootNode = createNode(parsedData);
+            tableContainer.appendChild(rootNode);
+            tableContainer.style.display = "block";
+          } else if (currentView === "tree") {
+            renderTreeView(parsedData, treeContainer);
+            treeContainer.style.display = "block";
+          }
+
+          clearError();
+        } catch (error) {
+          highlightError(error);
+        }
+      }
+      function renderTreeView(data, container) {
+        const ul = document.createElement("ul");
+        ul.style.fontFamily = "monospace";
+        ul.style.lineHeight = "1.6";
+
+        function buildTree(obj, parentUl) {
+          for (const key in obj) {
+            const li = document.createElement("li");
+            const value = obj[key];
+
+            // If value is an object, make it a parent node with the possibility of collapsing
+            if (typeof value === "object" && value !== null) {
+              li.classList.add("parent", "collapsed");
+              const label = document.createElement("div");
+              label.classList.add("node-label");
+              label.innerHTML = `<strong>${key}</strong>`;
+              li.appendChild(label);
+
+              const nestedUl = document.createElement("ul");
+              buildTree(value, nestedUl);
+              li.appendChild(nestedUl);
+            } else {
+              li.classList.add("leaf");
+              const label = document.createElement("div");
+              label.classList.add("node-label");
+              label.innerHTML = `<strong>${key}</strong>: <span class="node-text">${value}</span>`;
+              li.appendChild(label);
+            }
+
+            parentUl.appendChild(li);
+          }
+        }
+
+        buildTree(data, ul);
+        container.appendChild(ul);
+      }
+
+      // Add interactivity for expanding/collapsing nodes
+      document
+        .getElementById("treeVisualizer")
+        .addEventListener("click", function (event) {
+          const target = event.target;
+
+          if (target && target.classList.contains("node-label")) {
+            const li = target.parentElement;
+
+            if (li.classList.contains("parent")) {
+              li.classList.toggle("collapsed");
+              li.classList.toggle("expanded");
+            }
+          }
+        });
+
+      function createNode(
+        data,
+        parentKey = "",
+        isChildNode = false,
+        index = null,
+        path = ""
+      ) {
+        const node = document.createElement("div");
+        node.classList.add("node");
+        node.classList.toggle("collapsed", !isChildNode); // Initially collapsed nodes
+
+        // Click event to open JSON popup
+        node.onclick = function (event) {
+          event.stopPropagation(); // Prevent the click from propagating
+          const fullPath = generatePath(path, parentKey, index);
+          currentPopupData = { data, path: fullPath }; // Store data and path in the global variable
+          openPopup(data, fullPath, event); // Pass the event to the openPopup function
+        };
+
+        // Add Indexing for arrays
+        if (index !== null) {
+          const indexLabel = document.createElement("div");
+          indexLabel.classList.add("index");
+          indexLabel.textContent = `Index: ${index + 1}`;
+          node.appendChild(indexLabel);
+        }
+
+        // If the data is an object, we need to process it
+        if (typeof data === "object" && data !== null) {
+          const isArray = Array.isArray(data);
+          if (isArray) {
+            // Display the number of sub-items in the array
+            const subItemCount = document.createElement("div");
+            subItemCount.classList.add("sub-item-count");
+            subItemCount.textContent = `${parentKey} contains ${data.length} item(s)`;
+            node.appendChild(subItemCount);
+
+            // For each object in the array, create a separate node
+            data.forEach((item, index) => {
+              const itemNode = createNode(
+                item,
+                `Item ${index + 1}`,
+                true,
+                index,
+                path
+              );
+              node.appendChild(itemNode);
+            });
+          } else {
+            const table = document.createElement("table");
+            let hasSubNodes = false;
+            for (const key in data) {
+              // If a child node exists, create it recursively
+              const row = document.createElement("tr");
+              const keyCell = document.createElement("td");
+              keyCell.classList.add("key");
+              keyCell.textContent = key;
+              const valueCell = document.createElement("td");
+              valueCell.classList.add("value");
+              const valueNode = createNode(data[key], key, true, null, path);
+              valueCell.appendChild(valueNode);
+              row.appendChild(keyCell);
+              row.appendChild(valueCell);
+              table.appendChild(row);
+
+              if (typeof data[key] === "object" && data[key] !== null) {
+                hasSubNodes = true;
+              }
+            }
+
+            node.appendChild(table);
+
+            // If no sub-nodes, mark as collapsed (don't show children initially)
+            if (!hasSubNodes) {
+              node.classList.add("collapsed");
+            }
+          }
+        } else {
+          node.textContent = `${parentKey}: ${JSON.stringify(data)}`;
+        }
+
+        return node;
+      }
+
+      function generatePath(path, parentKey, index) {
+        let fullPath = path;
+        if (index !== null) {
+          fullPath += `[${index}]`; // For arrays, add index
+        } else if (parentKey) {
+          fullPath += `.${parentKey}`; // For objects, add the key
+        }
+        return fullPath;
+      }
+
+      function openPopup(data, path, event) {
+        const language = getSelectedFormat();
+        const popup = document.getElementById("jsonPopup");
+        const heading = document.getElementById("popupHeading");
+        const content = document.getElementById("popupJsonContent");
+
+        // Display the full path in the heading
+        heading.textContent = `Path: ${formatPath(path, language)}`;
+        content.textContent = JSON.stringify(data, null, 2); // Set the JSON data in the popup
+
+        // Ensure the popup is hidden before measuring
+        popup.style.display = "block";
+
+        // Get the size of the popup
+        const popupWidth = popup.offsetWidth;
+        const popupHeight = popup.offsetHeight;
+
+        // Calculate the position to center the popup
+        const top = window.scrollY + (window.innerHeight - popupHeight) / 2;
+        const left = window.scrollX + (window.innerWidth - popupWidth) / 2;
+
+        // Set the position of the popup
+        popup.style.top = `${top}px`;
+        popup.style.left = `${left}px`;
+      }
+
+      function formatPath(path, language) {
+        switch (language) {
+          case "js":
+            return path.replace(/\[(\d+)\]/g, "[$1]").replace(/\./g, ".");
+          case "php":
+            return path.replace(/\[(\d+)\]/g, "['$1']").replace(/\./g, "['");
+          case "python":
+            return path.replace(/\[(\d+)\]/g, "['$1']").replace(/\./g, "['");
+          default:
+            return path;
+        }
+      }
+
+      function closePopup() {
+        const popup = document.getElementById("jsonPopup");
+        popup.style.display = "none"; // Hide the popup
+      }
+
+      function copyToClipboard() {
+        const content = document.getElementById("popupJsonContent").textContent;
+        navigator.clipboard.writeText(content).then(
+          function () {
+            alert("JSON copied to clipboard!");
+          },
+          function () {
+            alert("Failed to copy JSON!");
+          }
+        );
+      }
+    </script>
+  </body>
+</html>
